@@ -9,6 +9,10 @@ use App\Domain\Repository\CreditProgramRepositoryInterface;
 
 class CreditCalculator
 {
+    private const PREFERRED_PROGRAM_NAME = 'Alfa Energy';
+    private const PREFERRED_INITIAL_PAYMENT_THRESHOLD = 200000;
+    private const PREFERRED_LOAN_TERM_THRESHOLD = 60;
+
     public function __construct(private CreditProgramRepositoryInterface $creditProgramRepository) {}
 
     public function calculate(int $price, float $initialPayment, int $loanTerm): array
@@ -41,63 +45,33 @@ class CreditCalculator
 
     private function findCreditProgram(float $initialPayment, int $loanTerm): ?CreditProgram
     {
-        $preferredProgram = null;
-        $findPreferred = false;
+        // Условие для поиска предпочтительной программы
+        $findPreferred = $initialPayment > self::PREFERRED_INITIAL_PAYMENT_THRESHOLD
+                         && $loanTerm < self::PREFERRED_LOAN_TERM_THRESHOLD;
 
-         if ($initialPayment > 200000 && $loanTerm < 60) {
-             $findPreferred = true;
-             $programs = $this->creditProgramRepository->findAll();
-             foreach ($programs as $p) {
-                 if ($p->getTitle() === 'Alfa Energy') {
-                     $preferredProgram = $p;
-                     break;
-                 }
-             }
+        if ($findPreferred) {
+            $preferredProgram = $this->creditProgramRepository->findPreferredByName(self::PREFERRED_PROGRAM_NAME);
+            if ($preferredProgram) {
+                return $preferredProgram;
+            }
+            // Если предпочтительная не найдена, ищем лучшую альтернативу, исключая ее имя
+            $alternativeProgram = $this->creditProgramRepository->findBestAlternative(self::PREFERRED_PROGRAM_NAME);
+            if ($alternativeProgram) {
+                return $alternativeProgram;
+            }
+            // Если и альтернативы нет, ищем любую другую, кроме предпочтительной
+            return $this->creditProgramRepository->findAnyExcept(self::PREFERRED_PROGRAM_NAME);
+        }
 
-             if ($preferredProgram) {
-                 return $preferredProgram;
-             }
-         }
-
-         $allPrograms = $this->creditProgramRepository->findAll();
-         if (empty($allPrograms)) {
-             return null;
-         }
-
-         $alternativeProgram = null;
-         $minRate = PHP_FLOAT_MAX;
-
-         foreach ($allPrograms as $program) {
-             if ($findPreferred && $program->getTitle() === 'Alfa Energy') {
-                 continue;
-             }
-
-             // Ищем программу с минимальной ставкой среди остальных
-             if ($program->getInterestRate() < $minRate) {
-                 $minRate = $program->getInterestRate();
-                 $alternativeProgram = $program;
-             }
-         }
-
-         if (!$alternativeProgram && $findPreferred) {
-             foreach ($allPrograms as $program) {
-                 if ($program->getTitle() !== 'Alfa Energy') {
-                     return $program;
-                 }
-             }
-         }
-         
-         return $alternativeProgram;
+        return $this->creditProgramRepository->findBestAlternative();
     }
 
     private function calculateMonthlyPayment(float $loanAmount, float $annualRate, int $loanTerm): int
     {
         if ($annualRate == 0) {
-            // Если ставка 0%, платеж равен сумме кредита, деленной на срок
             $monthlyPayment = $loanAmount / $loanTerm;
         } else {
-            $monthlyRate = $annualRate / 12 / 100; // Месячная ставка в долях
-            // Формула платежа
+            $monthlyRate = $annualRate / 12 / 100;
             $powTerm = pow(1 + $monthlyRate, $loanTerm);
             if ($powTerm - 1 == 0) {
                  return (int) round($loanAmount / $loanTerm);

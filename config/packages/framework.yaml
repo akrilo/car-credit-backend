@@ -1,9 +1,20 @@
 # see https://symfony.com/doc/current/reference/configuration/framework.html
 framework:
     secret: '%env(APP_SECRET)%'
+    http_method_override: false
+    handle_all_throwables: true
+    session:
+        handler_id: null
+        cookie_secure: auto
+        cookie_samesite: lax
+        storage_factory_id: session.storage.factory.native
 
-    # Note that the session will be started ONLY if you read or write from it.
-    session: true
+    php_errors:
+        log: true
+
+    serializer:
+        enabled: true
+        # enable_annotations: true
 
     #esi: true
     #fragments: true
@@ -13,3 +24,12 @@ when@test:
         test: true
         session:
             storage_factory_id: session.storage.factory.mock_file
+
+when@prod:
+    framework:
+        cache:
+            pools:
+                doctrine.result_cache_pool:
+                    adapter: cache.app
+                doctrine.system_cache_pool:
+                    adapter: cache.system

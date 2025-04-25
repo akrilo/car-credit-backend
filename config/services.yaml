@@ -31,5 +31,14 @@ services:
     App\Application\Service\RequestService: ~
     App\Domain\Service\CreditCalculator: ~
 
+    Symfony\Component\Serializer\Normalizer\ObjectNormalizer:
+        arguments: [null, null, '@property_accessor', '@property_info']
+        tags:
+            # Добавляем тег, чтобы он автоматически использовался Serializer'ом
+            - { name: serializer.normalizer, priority: -1000 }
+
+    Symfony\Component\Serializer\Encoder\JsonEncoder:
+        tags: [ serializer.encoder ]
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

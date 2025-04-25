@@ -45,6 +45,38 @@ class CreditProgramRepository extends ServiceEntityRepository implements CreditP
         $this->em->flush();
     }
 
+    public function findPreferredByName(string $name): ?CreditProgram
+    {
+        return $this->findOneBy(['title' => $name]);
+    }
+
+    public function findBestAlternative(?string $excludeName = null): ?CreditProgram
+    {
+        $qb = $this->createQueryBuilder('p')
+            ->orderBy('p.interestRate', 'ASC') // Ищем с минимальной ставкой
+            ->setMaxResults(1);
+
+        if ($excludeName !== null) {
+            $qb->andWhere('p.title != :excludeName')
+               ->setParameter('excludeName', $excludeName);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    public function findAnyExcept(?string $excludeName = null): ?CreditProgram
+    {
+        $qb = $this->createQueryBuilder('p')
+             ->setMaxResults(1);
+
+        if ($excludeName !== null) {
+            $qb->andWhere('p.title != :excludeName')
+               ->setParameter('excludeName', $excludeName);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
     //    /**
     //     * @return CreditProgram[] Returns an array of CreditProgram objects
     //     */
